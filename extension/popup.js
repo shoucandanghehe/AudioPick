@@ -7,6 +7,7 @@ var domainString;
 // Assume all devices are the system default until proven otherwise.
 var domainDevice = "default";
 var activeDevice = "default";
+var rules = [];
 
 // Write to console.log, if debugging is enabled.
 function debugMessage(...args) {
@@ -341,6 +342,104 @@ function buildDeviceTable(mediaDeviceInfo) {
 	}
 }
 
+function buildRulesTable() {
+	let table = document.getElementById("rules_table_body");
+	// Remove all existing rows from the rules table.
+	while (table.rows.length > 0) {
+		table.deleteRow(0);
+	}
+
+	rules.forEach((rule, index) => {
+		let row = table.insertRow(-1);
+		row.insertCell(0).innerHTML = rule.type;
+		row.insertCell(1).innerHTML = rule.isRegex ? "Regex" : "Text";
+		row.insertCell(2).innerHTML = rule.pattern;
+		row.insertCell(3).innerHTML = rule.deviceLabel;
+		let deleteCell = row.insertCell(4);
+		deleteCell.innerHTML = "&#10005;"; // Cross mark
+		deleteCell.dataset.index = index;
+		deleteCell.onclick = deleteRule_OnClick;
+	});
+
+	// Populate device options in the "add rule" form
+	let deviceSelect = document.getElementById("rule_device_select");
+	deviceSelect.innerHTML = ""; // Clear existing options
+	let deviceTable = document.getElementById("device_options");
+	for (let i = 1; i < deviceTable.rows.length; i++) {
+		// Skip title row
+		let row = deviceTable.rows[i];
+		if (row.classList.contains("disabled")) continue;
+
+		let radio = row.querySelector("input[type='radio']");
+		let label = row.querySelector("label").innerText;
+		let option = document.createElement("option");
+		option.value = radio.id;
+		option.dataset.label = label;
+		option.text = label;
+		deviceSelect.appendChild(option);
+	}
+}
+
+async function saveRules() {
+	await chrome.storage.local.set({ rules: rules });
+}
+
+function addRule_OnClick() {
+	let type = document.getElementById("rule_type_select").value;
+	let pattern = document.getElementById("rule_pattern_input").value;
+	let isRegex = document.getElementById("rule_is_regex_checkbox").checked;
+	let deviceSelect = document.getElementById("rule_device_select");
+	let deviceId = deviceSelect.value;
+	let deviceLabel =
+		deviceSelect.options[deviceSelect.selectedIndex].dataset.label;
+
+	if (pattern && deviceId) {
+		rules.push({ type, pattern, isRegex, deviceId, deviceLabel });
+		saveRules();
+		buildRulesTable();
+		document.getElementById("rule_pattern_input").value = ""; // Clear input
+		document.getElementById("rule_is_regex_checkbox").checked = false;
+	}
+}
+
+function deleteRule_OnClick(e) {
+	let index = e.target.dataset.index;
+	rules.splice(index, 1);
+	saveRules();
+	buildRulesTable();
+}
+
+function applyMatchingRule(tab) {
+	for (const rule of rules) {
+		let matchTarget = "";
+		if (rule.type === "url") {
+			matchTarget = tab.url;
+		} else if (rule.type === "title") {
+			matchTarget = tab.title;
+		}
+
+		let match = false;
+		if (rule.isRegex) {
+			try {
+				match = new RegExp(rule.pattern).test(matchTarget);
+			} catch (e) {
+				console.error("Invalid regex pattern:", rule.pattern, e);
+				continue; // Skip invalid regex rule
+			}
+		} else {
+			match = matchTarget && matchTarget.includes(rule.pattern);
+		}
+
+		if (match) {
+			debugMessage(
+				`Rule matched: ${rule.pattern}. Setting device to ${rule.deviceId}`
+			);
+			activeDevice = rule.deviceId;
+			return; // Stop after first match
+		}
+	}
+}
+
 async function init() {
 	let status = document.getElementById("status_message");
 	let checkboxDebug = document.getElementById("checkbox_debug");
@@ -367,6 +466,13 @@ async function init() {
 	if (!activeTab.url || (activeTab.url.toLowerCase().indexOf("https") === -1)) {
 		tabError = "Invalid URL. Not HTTPS.";
 	}
+
+	// Load rules before anything else that might use them.
+	const ruleStorage = await chrome.storage.local.get(["rules"]);
+	if (ruleStorage.rules) {
+		rules = ruleStorage.rules;
+	}
+
 	if (tabError === "") {
 		// Generate domain storage name from tab URL.
 		domainString = storagePrefix + activeTab.url.split("/")[2];
@@ -386,6 +492,12 @@ async function init() {
 			tabError = "Content Script not reponding. Try reload.";
 		}
 	}
+
+	// Apply rules after getting tab info and before building the device list.
+	if (tabError === "" && activeTab) {
+		applyMatchingRule(activeTab);
+	}
+
 	if (tabError === "") {
 		// Get the site's Permissions-Policy for microphone access.
 		try {
@@ -408,6 +520,9 @@ async function init() {
 	const deviceList = await navigator.mediaDevices.enumerateDevices();
 	// Build the popup's device table.
 	buildDeviceTable(deviceList);
+	// Build the rules table
+	buildRulesTable();
+
 	// Set the onClick handler for all buttons and disable
 	// all but the "cancel" button, if tabError !== "".
 	Array.from(document.getElementsByTagName("button")).forEach(function (e) {
@@ -419,6 +534,8 @@ async function init() {
 			e.onclick = "";
 		}
 	});
+	document.getElementById("add_rule_button").onclick = addRule_OnClick;
+
 	if (storageResult) {
 		let now = Date.now() / 1000.0; // [seconds]
 		// Enable animation only once every hour (3600 seconds)

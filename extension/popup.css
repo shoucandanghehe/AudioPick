@@ -347,3 +347,63 @@ footer a ~ a {
 footer span { /* error/status message */
 	color: var(--logo-red);
 }
+
+td:first-child {
+	width: 24px;
+	text-align: center;
+}
+td:last-child {
+	width: 24px;
+	text-align: center;
+	cursor: default;
+}
+tr.disabled {
+	color: #808080;
+	font-style: italic;
+}
+tr.disabled label,
+tr.disabled span {
+	color: #808080 !important;
+}
+hr {
+	border: 1px solid #404040;
+	margin: 12px 0px;
+}
+#rules_section h3,
+#rules_section h4 {
+	margin-top: 0px;
+	margin-bottom: 8px;
+}
+#rules_table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-bottom: 12px;
+}
+#rules_table th,
+#rules_table td {
+	padding: 4px;
+	text-align: left;
+	border-bottom: 1px solid #404040;
+}
+#rules_table td:last-child {
+	width: 24px;
+	text-align: center;
+	cursor: pointer;
+}
+#add_rule_form {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+#add_rule_form input[type="text"] {
+	flex-grow: 1;
+}
+#add_rule_form button {
+	white-space: nowrap;
+}
+.regex-label {
+	display: flex;
+	align-items: center;
+	white-space: nowrap;
+	gap: 4px;
+}

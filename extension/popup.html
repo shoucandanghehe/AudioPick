@@ -65,6 +65,43 @@
 			<button id="applyStar" type="button" tabindex="-1">Apply and &#9733; for domain</button>
 		</nav>
 	</main>
+	<hr />
+	<section id="rules_section">
+		<h3>Automatic Selection Rules</h3>
+		<div id="rules_table_container">
+			<table id="rules_table">
+				<thead>
+					<tr>
+						<th>Type</th>
+						<th>Mode</th>
+						<th>Pattern</th>
+						<th>Device</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody id="rules_table_body"></tbody>
+			</table>
+		</div>
+		<h4>Add New Rule</h4>
+		<form id="add_rule_form" onsubmit="return false;">
+			<select id="rule_type_select">
+				<option value="url">URL contains</option>
+				<option value="title">Title contains</option>
+			</select>
+			<input
+				type="text"
+				id="rule_pattern_input"
+				placeholder="Enter pattern..."
+			/>
+			<select id="rule_device_select"></select>
+			<label class="regex-label"
+				><input type="checkbox" id="rule_is_regex_checkbox" />
+				Regex</label
+			>
+			<button id="add_rule_button">Add</button>
+		</form>
+	</section>
+	<hr />
 	<footer>
 		<a href="https://github.com/rain-fighters/AudioPick/releases" target="_blank" tabindex="-1"
 			title="AudioPick Releases on GitHub">
